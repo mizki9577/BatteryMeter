@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+A Battery Meter. Works on tasktray.
+"""
+
+import sys
+from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush
+
+ICON_SIZE = 100
+MENU_EXIT_ITEM_LABEL = 'Exit'
+INTERVAL_MS = 1000
+
+background_color = QColor(0, 0, 0)
+foreground_color = QColor(0, 255, 0)
+
+
+class BatteryMeter(object):
+
+    """
+    A Batterry Meter.
+    """
+
+    def __init__(self):
+        self.app = QApplication(sys.argv)
+        self.graph_pixmap = QPixmap(ICON_SIZE, ICON_SIZE)
+        self.graph_pixmap.fill()
+        self.painter = QPainter(self.graph_pixmap)
+        self.painter.setBackground(QBrush(background_color))
+        self.sys_tray_icon = QSystemTrayIcon()
+
+        # Context menu
+        context_menu = QMenu()
+        item_exit = context_menu.addAction(MENU_EXIT_ITEM_LABEL)
+        item_exit.triggered.connect(self.app.quit)
+        self.sys_tray_icon.setContextMenu(context_menu)
+
+        # Timer
+        timer = QTimer()
+        timer.timeout.connect(self.refresh)
+        timer.start(INTERVAL_MS)
+
+        # Start
+        self.sys_tray_icon.show()
+        self.app.exec()
+
+    def refresh(self):
+        """Draw graph, and refresh the tray icon."""
+        self.painter.eraseRect(0, 0, ICON_SIZE, ICON_SIZE)
+        self.rate = self.battery_energy_rate()
+        self.painter.fillRect(
+            0,
+            ICON_SIZE,
+            ICON_SIZE,
+            - self.rate * ICON_SIZE,
+            foreground_color
+        )
+        self.sys_tray_icon.setIcon(QIcon(self.graph_pixmap))
+        self.sys_tray_icon.setToolTip('{:5.2f} %'.format(self.rate * 100))
+        return
+
+    def battery_energy_rate(self):
+        """Return battery energy rate."""
+        return self.battery_energy_now() / self.battery_energy_full()
+
+    def battery_energy_full(self):
+        """Return battery enagy in full."""
+        return int(open('/sys/class/power_supply/BAT0/energy_full').read())
+
+    def battery_energy_now(self):
+        """Return current battery energy."""
+        return int(open('/sys/class/power_supply/BAT0/energy_now').read())
+
+
+if __name__ == '__main__':
+    BatteryMeter()
