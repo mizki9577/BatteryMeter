@@ -6,14 +6,11 @@ A Battery Meter. Works on tasktray.
 import sys
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush
+from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QLinearGradient
 
 ICON_SIZE = 100
 MENU_EXIT_ITEM_LABEL = 'Exit'
 INTERVAL_MS = 1000
-
-background_color = QColor(0, 0, 0)
-foreground_color = QColor(0, 255, 0)
 
 
 class BatteryMeter(object):
@@ -24,17 +21,30 @@ class BatteryMeter(object):
 
     def __init__(self):
         self.app = QApplication(sys.argv)
+
+        # Color
+        self.background_color = QColor(0, 0, 0)
+        full_color = QColor(0, 255, 0)
+        middle_color = QColor(255, 255, 0)
+        low_color = QColor(255, 0, 0)
+
+        # Gradient Brush
+        gradient = QLinearGradient(ICON_SIZE / 2, 0, ICON_SIZE / 2, ICON_SIZE)
+        gradient.setColorAt(0, full_color)
+        gradient.setColorAt(0.75, middle_color)
+        gradient.setColorAt(1, low_color)
+        self.graph_brush = QBrush(gradient)
+
+        # Pixman and Painter
         self.graph_pixmap = QPixmap(ICON_SIZE, ICON_SIZE)
         self.graph_pixmap.fill()
         self.painter = QPainter(self.graph_pixmap)
-        self.painter.setBackground(QBrush(background_color))
-        self.sys_tray_icon = QSystemTrayIcon()
+        self.painter.setBackground(QBrush(self.background_color))
 
         # Context menu
         context_menu = QMenu()
         item_exit = context_menu.addAction(MENU_EXIT_ITEM_LABEL)
         item_exit.triggered.connect(self.app.quit)
-        self.sys_tray_icon.setContextMenu(context_menu)
 
         # Timer
         timer = QTimer()
@@ -42,8 +52,10 @@ class BatteryMeter(object):
         timer.start(INTERVAL_MS)
 
         # Start
+        self.sys_tray_icon = QSystemTrayIcon()
+        self.sys_tray_icon.setContextMenu(context_menu)
         self.sys_tray_icon.show()
-        self.app.exec()
+        sys.exit(self.app.exec())
 
     def refresh(self):
         """Draw graph, and refresh the tray icon."""
@@ -54,10 +66,10 @@ class BatteryMeter(object):
             ICON_SIZE,
             ICON_SIZE,
             - self.rate * ICON_SIZE,
-            foreground_color
+            self.graph_brush
         )
         self.sys_tray_icon.setIcon(QIcon(self.graph_pixmap))
-        self.sys_tray_icon.setToolTip('{:5.2f} %'.format(self.rate * 100))
+        self.sys_tray_icon.setToolTip('{:6.2f} %'.format(self.rate * 100))
         return
 
     def battery_energy_rate(self):
