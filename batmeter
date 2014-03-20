@@ -5,12 +5,15 @@ A Battery Meter. Works on tasktray.
 
 import sys
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QErrorMessage
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QLinearGradient
 
 ICON_SIZE = 100
 MENU_EXIT_ITEM_LABEL = 'Exit'
 INTERVAL_MS = 1000
+CHARGING = 'Charging'
+DISCHARGING = 'Discharging'
+UNKNOWN = 'Unknown'
 
 
 class BatteryMeter(object):
@@ -21,6 +24,11 @@ class BatteryMeter(object):
 
     def __init__(self):
         self.app = QApplication(sys.argv)
+        self.app.setQuitOnLastWindowClosed(False)
+
+        # Check system tray support
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            self._errmsg('There is no system tray.', connect=sys.exit)
 
         # Color
         self.background_color = QColor(0, 0, 0)
@@ -62,9 +70,18 @@ class BatteryMeter(object):
         """Draw graph, and refresh the tray icon."""
         self.painter.eraseRect(0, 0, ICON_SIZE, ICON_SIZE)
         self.rate = self.battery_energy_rate()
-        if self.battery_is_charging():
+
+        try:
+            battery_status = self.battery_status()
+        except BatteryStatusError as e:
+            self.sys_tray_icon.showMessage(str(e))
+            battery_status = UNKNOWN
+
+        if battery_status is CHARGING:
             graph_color = self.charging_color
-        else:
+        elif battery_status is DISCHARGING:
+            graph_color = self.graph_brush
+        elif battery_status is UNKNOWN:
             graph_color = self.graph_brush
 
         self.painter.fillRect(
@@ -76,13 +93,15 @@ class BatteryMeter(object):
         )
 
         self.sys_tray_icon.setIcon(QIcon(self.graph_pixmap))
-        self.sys_tray_icon.setToolTip('{:6.2f} %'.format(self.rate * 100))
-        self.battery_is_charging()
+        self.sys_tray_icon.setToolTip('{} {:6.2f} %'.format(battery_status, self.rate * 100))
         return
 
     def battery_energy_rate(self):
         """Return battery energy rate."""
-        return self.battery_energy_now() / self.battery_energy_full()
+        try:
+            return self.battery_energy_now() / self.battery_energy_full()
+        except FileNotFoundError as e:
+            self._errmsg(str(e))
 
     def battery_energy_full(self):
         """Return battery enagy in full."""
@@ -92,10 +111,36 @@ class BatteryMeter(object):
         """Return current battery energy."""
         return int(open('/sys/class/power_supply/BAT0/energy_now').read())
 
-    def battery_is_charging(self):
+    def battery_status(self):
         """Return True if battery is charging."""
-        return open('/sys/class/power_supply/BAT0/status').read() == 'Charging\n'
+        status = open('/sys/class/power_supply/BAT0/status').read()
+        if status == 'Charging\n':
+            return CHARGING
+        elif status == 'Discharging\n':
+            return DISCHARGING
+        elif status == 'Unknown\n':
+            return UNKNOWN
+        else:
+            raise BatteryStatusError(status)
 
+    def _errmsg(self, msg, connect=None):
+        errmsg = QErrorMessage()
+        if connect is None:
+            connect = self.app.quit
+        errmsg.finished.connect(connect)
+        errmsg.showMessage(msg)
+        errmsg.exec()
+
+
+class BatteryStatusError(ValueError):
+
+    """Error when BatteryMeter gots unknown battery status."""
+
+    def __init__(self, status):
+        self.status = status
+
+    def __str__(self):
+        return 'Unknown battery status ({}) has returned.'.format(self.status)
 
 if __name__ == '__main__':
     BatteryMeter()
