@@ -154,6 +154,3 @@ class BatteryStatusError(ValueError):
 
     def __str__(self):
         return 'Unknown battery status ({}) has returned.'.format(self.status)
-
-if __name__ == '__main__':
-    BatteryMeter()
