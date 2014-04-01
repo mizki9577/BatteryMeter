@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-A Battery Meter. Works on tasktray.
+A Battery Meter. Works on systray.
 """
 
 import sys
@@ -13,7 +13,6 @@ INTERVAL_MS = 1000
 CHARGING = 'Charging'
 DISCHARGING = 'Discharging'
 UNKNOWN = 'Unknown'
-FONTFILE = 'font.png'
 
 
 class BatteryMeter(object):
@@ -67,9 +66,6 @@ class BatteryMeter(object):
         self.graph_painter = QPainter(self.graph_pixmap)
         self.graph_painter.setBackground(QBrush(self.background_color))
 
-        # font
-        self.font_bitmap = QPixmap(FONTFILE)
-
         # Timer
         timer = QTimer()
         timer.timeout.connect(self.refresh)
@@ -104,8 +100,6 @@ class BatteryMeter(object):
             graph_color
         )
 
-        self.draw_rate()
-
         self.trayicon.setIcon(QIcon(self.graph_pixmap))
         self.trayicon.setToolTip('{} {:6.2f} %'.format(battery_status, self.rate * 100))
         return
@@ -137,18 +131,12 @@ class BatteryMeter(object):
         else:
             raise BatteryStatusError(status)
 
-    def draw_rate(self):
-        if self.rate < 0:
-            raise ValueError
-
-        str_rate = str(int(self.rate * 100))
-        for i, char in enumerate(str_rate):
-            self.graph_painter.drawPixmap(1 + i * 4, self.trayicon_size - 6, self.font_bitmap.copy(int(char) * 4, 0, 4, 5))
-        self.graph_painter.drawPixmap(5 + i * 4, self.trayicon_size - 6, self.font_bitmap.copy(40, 0, 4, 5))
-
-        return
-
     def _errmsg(self, msg, connect=None):
+        """
+        Display error dialog window.
+        In default, the application will shut down when the dialog window will be closed.
+        """
+        #ひどい英語だ
         errmsg = QErrorMessage()
         if connect is None:
             connect = self.app.quit
