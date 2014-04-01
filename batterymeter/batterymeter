@@ -105,7 +105,6 @@ class BatteryMeter(object):
         )
 
         self.draw_rate()
-        self.font_bitmap.save('test.xpm')
 
         self.trayicon.setIcon(QIcon(self.graph_pixmap))
         self.trayicon.setToolTip('{} {:6.2f} %'.format(battery_status, self.rate * 100))
