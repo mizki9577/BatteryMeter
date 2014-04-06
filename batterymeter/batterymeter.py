@@ -12,6 +12,7 @@ MENU_EXIT_ITEM_LABEL = 'Exit'
 INTERVAL_MS = 1000
 CHARGING = 'Charging'
 DISCHARGING = 'Discharging'
+FULL = 'Full'
 UNKNOWN = 'Unknown'
 
 
@@ -43,9 +44,9 @@ class BatteryMeter(object):
 
         # Color
         self.background_color = QColor(0, 0, 0)
-        full_color = QColor(0, 255, 0)
         middle_color = QColor(255, 255, 0)
         low_color = QColor(255, 0, 0)
+        self.full_color = QColor(0, 255, 0)
         self.charging_color = QColor(0, 0, 255)
 
         # Gradient Brush
@@ -55,7 +56,7 @@ class BatteryMeter(object):
             self.trayicon_size / 2,
             self.trayicon_size
         )
-        gradient.setColorAt(0, full_color)
+        gradient.setColorAt(0, self.full_color)
         gradient.setColorAt(0.75, middle_color)
         gradient.setColorAt(1, low_color)
         self.graph_brush = QBrush(gradient)
@@ -82,13 +83,15 @@ class BatteryMeter(object):
         try:
             battery_status = self.battery_status()
         except BatteryStatusError as e:
-            self.trayicon.showMessage(str(e))
+            self.trayicon.showMessage('battery-meter', str(e))
             battery_status = UNKNOWN
 
         if battery_status is CHARGING:
             graph_color = self.charging_color
         elif battery_status is DISCHARGING:
             graph_color = self.graph_brush
+        elif battery_status is FULL:
+            graph_color = self.full_color
         elif battery_status is UNKNOWN:
             graph_color = self.graph_brush
 
@@ -126,6 +129,8 @@ class BatteryMeter(object):
             return CHARGING
         elif status == 'Discharging\n':
             return DISCHARGING
+        elif status == 'Full\n':
+            return FULL
         elif status == 'Unknown\n':
             return UNKNOWN
         else:
