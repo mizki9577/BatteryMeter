@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-A Battery Meter. Works on systray.
+A battery meter. Works on systray.
 """
 
 import sys
